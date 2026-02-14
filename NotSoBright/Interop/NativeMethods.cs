@@ -7,6 +7,7 @@ internal static class NativeMethods
 {
     internal const int GwlExStyle = -20;
     internal const int WsExTransparent = 0x20;
+    internal const int WsExTopmost = 0x8;
 
     internal const int GwlStyle = -16;
     internal const uint WsPopup = 0x80000000;

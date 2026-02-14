@@ -82,14 +82,14 @@ public sealed class FullscreenDetectionService : IDisposable
 
         if (!NativeMethods.GetWindowRect(foreground, out var rect))
         {
-            Log.Warning("GetWindowRect failed for foreground window");
+            Log.Debug("GetWindowRect failed for foreground window");
             return false;
         }
 
         var monitor = NativeMethods.MonitorFromWindow(foreground, NativeMethods.MonitorDefaultToNearest);
         if (monitor == IntPtr.Zero)
         {
-            Log.Warning("MonitorFromWindow failed");
+            Log.Debug("MonitorFromWindow failed");
             return false;
         }
 
@@ -100,7 +100,7 @@ public sealed class FullscreenDetectionService : IDisposable
 
         if (!NativeMethods.GetMonitorInfo(monitor, ref info))
         {
-            Log.Warning("GetMonitorInfo failed");
+            Log.Debug("GetMonitorInfo failed");
             return false;
         }
 

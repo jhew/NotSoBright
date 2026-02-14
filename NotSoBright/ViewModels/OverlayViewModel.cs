@@ -1,7 +1,6 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using MessageBox = System.Windows.MessageBox;
 using System.Windows.Input;
 using NotSoBright.Models;
 using NotSoBright.Utilities;

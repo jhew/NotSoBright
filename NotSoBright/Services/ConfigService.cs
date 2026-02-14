@@ -14,6 +14,7 @@ public sealed class ConfigService
     };
 
     public string ConfigPath { get; }
+    public event EventHandler<Exception>? ConfigSaveFailed;
 
     public ConfigService()
     {
@@ -101,7 +102,7 @@ public sealed class ConfigService
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to save config");
-            // Optionally, show user notification, but since no UI here, just log
+            ConfigSaveFailed?.Invoke(this, ex);
         }
     }
 }

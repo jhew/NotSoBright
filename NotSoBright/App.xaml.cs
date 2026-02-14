@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Windows;
-using MessageBox = System.Windows.MessageBox;
 using NotSoBright.Models;
 using NotSoBright.Services;
 using Serilog;

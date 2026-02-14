@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Threading;
 using NotSoBright.Interop;
+using Serilog;
 
 namespace NotSoBright.Services;
 
@@ -41,26 +42,33 @@ public sealed class FullscreenDetectionService : IDisposable
 
     private void CheckFullscreen()
     {
-        var isExclusiveFullscreen = IsExclusiveFullscreen();
-
-        if (isExclusiveFullscreen && !_isExclusiveFullscreen)
+        try
         {
-            _isExclusiveFullscreen = true;
+            var isExclusiveFullscreen = IsExclusiveFullscreen();
 
-            if (_isOverlayVisible() && !_notified)
+            if (isExclusiveFullscreen && !_isExclusiveFullscreen)
             {
-                _notified = true;
-                _onFullscreenBlocked();
+                _isExclusiveFullscreen = true;
+
+                if (_isOverlayVisible() && !_notified)
+                {
+                    _notified = true;
+                    _onFullscreenBlocked();
+                }
+
+                return;
             }
 
-            return;
+            if (!isExclusiveFullscreen && _isExclusiveFullscreen)
+            {
+                _isExclusiveFullscreen = false;
+                _notified = false;
+                _onFullscreenExit();
+            }
         }
-
-        if (!isExclusiveFullscreen && _isExclusiveFullscreen)
+        catch (Exception ex)
         {
-            _isExclusiveFullscreen = false;
-            _notified = false;
-            _onFullscreenExit();
+            Log.Error(ex, "Error during fullscreen check");
         }
     }
 
@@ -74,12 +82,14 @@ public sealed class FullscreenDetectionService : IDisposable
 
         if (!NativeMethods.GetWindowRect(foreground, out var rect))
         {
+            Log.Debug("GetWindowRect failed for foreground window");
             return false;
         }
 
         var monitor = NativeMethods.MonitorFromWindow(foreground, NativeMethods.MonitorDefaultToNearest);
         if (monitor == IntPtr.Zero)
         {
+            Log.Debug("MonitorFromWindow failed");
             return false;
         }
 
@@ -90,6 +100,7 @@ public sealed class FullscreenDetectionService : IDisposable
 
         if (!NativeMethods.GetMonitorInfo(monitor, ref info))
         {
+            Log.Debug("GetMonitorInfo failed");
             return false;
         }
 

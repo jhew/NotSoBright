@@ -28,6 +28,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _configService.ConfigSaveFailed += OnConfigSaveFailed;
         _viewModel = new OverlayViewModel();
         _viewModel.CloseRequested += OnCloseRequested;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -106,6 +107,28 @@ public partial class MainWindow : Window
         _viewModel.ApplyOpacityText();
     }
 
+    private void OnWindowKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    IncreaseOpacity();
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    DecreaseOpacity();
+                    e.Handled = true;
+                    break;
+                case Key.M:
+                    ToggleMode();
+                    e.Handled = true;
+                    break;
+            }
+        }
+    }
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -181,13 +204,27 @@ public partial class MainWindow : Window
         if (_viewModel.IsEditMode)
         {
             exStyleValue &= ~NativeMethods.WsExTransparent;
+            Topmost = true;
         }
         else
         {
             exStyleValue |= NativeMethods.WsExTransparent;
+            Topmost = false;
         }
 
         NativeMethods.SetWindowLongPtr(_hwndSource.Handle, NativeMethods.GwlExStyle, new IntPtr(exStyleValue));
+
+        // Ensure the popup is not click-through and is topmost
+        if (ControlPanelPopup is not null)
+        {
+            var popupSource = PresentationSource.FromVisual(ControlPanelPopup) as System.Windows.Interop.HwndSource;
+            if (popupSource is not null)
+            {
+                var popupExStyle = NativeMethods.GetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle);
+                var popupExStyleValue = popupExStyle.ToInt64() & ~NativeMethods.WsExTransparent | NativeMethods.WsExTopmost;
+                NativeMethods.SetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle, new IntPtr(popupExStyleValue));
+            }
+        }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -209,13 +246,52 @@ public partial class MainWindow : Window
             }
             else
             {
-                // In Passive Mode, keep the overlay click-through.
+                // In Passive Mode, keep the overlay click-through, but allow interaction with control panel.
+                if (IsPointInControlPanel(windowPoint))
+                {
+                    handled = true;
+                    return new IntPtr(NativeMethods.HtClient);
+                }
                 handled = true;
                 return new IntPtr(NativeMethods.HtTransparent);
             }
         }
 
         return IntPtr.Zero;
+    }
+
+    private bool IsPointInControlPanel(System.Windows.Point point)
+    {
+        // Prefer using the actual bounds of the control panel element, falling back to the
+        // previous hardcoded rectangle only if layout information is not available yet.
+        if (ControlPanel is not null &&
+            ControlPanel.IsLoaded &&
+            ControlPanel.ActualWidth > 0 &&
+            ControlPanel.ActualHeight > 0)
+        {
+            GeneralTransform transform;
+            try
+            {
+                transform = ControlPanel.TransformToAncestor(this);
+            }
+            catch (InvalidOperationException)
+            {
+                // Layout may not be ready; fall back to the approximate rectangle.
+                return point.X >= 8 && point.X <= 158 && point.Y >= 8 && point.Y <= 48;
+            }
+
+            var topLeft = transform.Transform(new System.Windows.Point(0, 0));
+            var bottomRight = transform.Transform(
+                new System.Windows.Point(ControlPanel.ActualWidth, ControlPanel.ActualHeight));
+
+            return point.X >= topLeft.X &&
+                   point.X <= bottomRight.X &&
+                   point.Y >= topLeft.Y &&
+                   point.Y <= bottomRight.Y;
+        }
+
+        // Fallback: approximate position and size relative to the window
+        return point.X >= 8 && point.X <= 158 && point.Y >= 8 && point.Y <= 48;
     }
 
     private int GetHitTestResult(System.Windows.Point point)
@@ -291,5 +367,10 @@ public partial class MainWindow : Window
         _config.Top = bounds.Top;
 
         _configService.Save(_config);
+    }
+
+    private void OnConfigSaveFailed(object? sender, Exception e)
+    {
+        System.Windows.MessageBox.Show($"Failed to save configuration: {e.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
     }
 }

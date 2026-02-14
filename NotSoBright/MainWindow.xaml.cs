@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -104,6 +105,28 @@ public partial class MainWindow : Window
     private void OnOpacityTextBoxLostFocus(object sender, RoutedEventArgs e)
     {
         _viewModel.ApplyOpacityText();
+    }
+
+    private void OnWindowKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    IncreaseOpacity();
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    DecreaseOpacity();
+                    e.Handled = true;
+                    break;
+                case Key.M:
+                    ToggleMode();
+                    e.Handled = true;
+                    break;
+            }
+        }
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -209,13 +232,24 @@ public partial class MainWindow : Window
             }
             else
             {
-                // In Passive Mode, keep the overlay click-through.
+                // In Passive Mode, keep the overlay click-through, but allow interaction with control panel.
+                if (IsPointInControlPanel(windowPoint))
+                {
+                    handled = true;
+                    return new IntPtr(NativeMethods.HtClient);
+                }
                 handled = true;
                 return new IntPtr(NativeMethods.HtTransparent);
             }
         }
 
         return IntPtr.Zero;
+    }
+
+    private static bool IsPointInControlPanel(System.Windows.Point point)
+    {
+        // Control panel is positioned at 8,8 relative to the window, approximate size 150x40
+        return point.X >= 8 && point.X <= 158 && point.Y >= 8 && point.Y <= 48;
     }
 
     private int GetHitTestResult(System.Windows.Point point)

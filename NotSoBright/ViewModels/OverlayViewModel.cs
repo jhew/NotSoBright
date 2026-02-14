@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using MessageBox = System.Windows.MessageBox;
 using System.Windows.Input;
 using NotSoBright.Models;
 using NotSoBright.Utilities;
@@ -15,13 +16,25 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
     private double _opacityPercent = 35;
     private string _opacityText = "35%";
     private InteractionMode _mode = InteractionMode.Edit;
+    private bool _isOpacityTextValid = true;
+    private bool _isClosing = false;
 
     public OverlayViewModel()
     {
         IncreaseOpacityCommand = new RelayCommand(_ => AdjustOpacity(1));
         DecreaseOpacityCommand = new RelayCommand(_ => AdjustOpacity(-1));
         ToggleModeCommand = new RelayCommand(_ => ToggleMode());
-        CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(this, EventArgs.Empty));
+        CloseCommand = new RelayCommand(_ =>
+        {
+            if (_isClosing) return;
+            _isClosing = true;
+            var result = System.Windows.MessageBox.Show("Close the overlay?", "Confirm", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+            _isClosing = false;
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                CloseRequested?.Invoke(this, EventArgs.Empty);
+            }
+        });
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -72,11 +85,21 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
         var text = OpacityText?.Trim().TrimEnd('%') ?? string.Empty;
         if (double.TryParse(text, out var value))
         {
-            OpacityPercent = value;
+            if (value >= MinOpacityPercent && value <= MaxOpacityPercent)
+            {
+                OpacityPercent = value;
+                IsOpacityTextValid = true;
+            }
+            else
+            {
+                OpacityText = $"{OpacityPercent:0}%";
+                IsOpacityTextValid = false;
+            }
         }
         else
         {
             OpacityText = $"{OpacityPercent:0}%";
+            IsOpacityTextValid = false;
         }
     }
 
@@ -100,6 +123,21 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
     public bool IsEditMode => Mode == InteractionMode.Edit;
 
     public string ModeLabel => IsEditMode ? "Edit" : "Passive";
+
+    public bool IsOpacityTextValid
+    {
+        get => _isOpacityTextValid;
+        private set
+        {
+            if (_isOpacityTextValid == value)
+            {
+                return;
+            }
+
+            _isOpacityTextValid = value;
+            OnPropertyChanged();
+        }
+    }
 
     private void AdjustOpacity(int delta)
     {

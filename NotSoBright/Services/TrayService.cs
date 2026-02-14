@@ -43,9 +43,19 @@ public sealed class TrayService : IDisposable
             exitItem
         });
 
+        Icon icon;
+        try
+        {
+            icon = SystemIcons.Warning; // Custom dimming-themed icon
+        }
+        catch
+        {
+            icon = SystemIcons.Application; // Fallback
+        }
+
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = icon,
             Text = "NotSoBright",
             Visible = true,
             ContextMenuStrip = menu

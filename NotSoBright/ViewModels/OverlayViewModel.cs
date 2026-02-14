@@ -16,24 +16,13 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
     private string _opacityText = "35%";
     private InteractionMode _mode = InteractionMode.Edit;
     private bool _isOpacityTextValid = true;
-    private bool _isClosing = false;
 
     public OverlayViewModel()
     {
         IncreaseOpacityCommand = new RelayCommand(_ => AdjustOpacity(1));
         DecreaseOpacityCommand = new RelayCommand(_ => AdjustOpacity(-1));
         ToggleModeCommand = new RelayCommand(_ => ToggleMode());
-        CloseCommand = new RelayCommand(_ =>
-        {
-            if (_isClosing) return;
-            _isClosing = true;
-            var result = System.Windows.MessageBox.Show("Close the overlay?", "Confirm", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
-            _isClosing = false;
-            if (result == System.Windows.MessageBoxResult.Yes)
-            {
-                CloseRequested?.Invoke(this, EventArgs.Empty);
-            }
-        });
+        CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(this, EventArgs.Empty));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

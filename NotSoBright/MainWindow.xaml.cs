@@ -44,6 +44,12 @@ public partial class MainWindow : Window
             SaveConfig();
         };
 
+        // Ensure popup window style is set when it opens
+        if (ControlPanelPopup is not null)
+        {
+            ControlPanelPopup.Opened += (_, _) => UpdatePopupWindowStyle();
+        }
+
         ApplyConfig();
         LocationChanged += (_, _) => ScheduleSave();
         SizeChanged += (_, _) => ScheduleSave();
@@ -139,7 +145,26 @@ public partial class MainWindow : Window
 
     private void OnCloseRequested(object? sender, System.EventArgs e)
     {
-        Close();
+        // Temporarily make window interactive so it can own the dialog
+        var wasPassive = !_viewModel.IsEditMode;
+        if (wasPassive)
+        {
+            // Temporarily set interactive to make dialog appear on top
+            Topmost = true;
+            Activate();
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            this, 
+            "Close the overlay?", 
+            "Confirm", 
+            System.Windows.MessageBoxButton.YesNo, 
+            System.Windows.MessageBoxImage.Question);
+
+        if (result == System.Windows.MessageBoxResult.Yes)
+        {
+            Close();
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -203,25 +228,39 @@ public partial class MainWindow : Window
 
         if (_viewModel.IsEditMode)
         {
+            // Edit mode: window is interactive
             exStyleValue &= ~NativeMethods.WsExTransparent;
-            Topmost = true;
         }
         else
         {
+            // Passive mode: window is click-through but remains topmost and visible
             exStyleValue |= NativeMethods.WsExTransparent;
-            Topmost = false;
         }
+
+        // Keep window topmost in both modes so overlay remains visible
+        Topmost = true;
 
         NativeMethods.SetWindowLongPtr(_hwndSource.Handle, NativeMethods.GwlExStyle, new IntPtr(exStyleValue));
 
+        // Update popup window style
+        UpdatePopupWindowStyle();
+    }
+
+    private void UpdatePopupWindowStyle()
+    {
         // Ensure the popup is not click-through and is topmost
-        if (ControlPanelPopup is not null)
+        if (ControlPanelPopup is not null && ControlPanelPopup.IsOpen)
         {
-            var popupSource = PresentationSource.FromVisual(ControlPanelPopup) as System.Windows.Interop.HwndSource;
+            var popupSource = PresentationSource.FromVisual(ControlPanelPopup.Child) as HwndSource;
             if (popupSource is not null)
             {
                 var popupExStyle = NativeMethods.GetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle);
-                var popupExStyleValue = popupExStyle.ToInt64() & ~NativeMethods.WsExTransparent | NativeMethods.WsExTopmost;
+                var popupExStyleValue = popupExStyle.ToInt64();
+                
+                // Remove transparent flag and ensure topmost
+                popupExStyleValue &= ~NativeMethods.WsExTransparent;
+                popupExStyleValue |= NativeMethods.WsExTopmost;
+                
                 NativeMethods.SetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle, new IntPtr(popupExStyleValue));
             }
         }
@@ -246,14 +285,9 @@ public partial class MainWindow : Window
             }
             else
             {
-                // In Passive Mode, keep the overlay click-through, but allow interaction with control panel.
-                if (IsPointInControlPanel(windowPoint))
-                {
-                    handled = true;
-                    return new IntPtr(NativeMethods.HtClient);
-                }
-                handled = true;
-                return new IntPtr(NativeMethods.HtTransparent);
+                // In Passive Mode, let WS_EX_TRANSPARENT handle click-through naturally.
+                // The control panel popup has its own window and will remain interactive.
+                // Do not handle the message for the main window.
             }
         }
 

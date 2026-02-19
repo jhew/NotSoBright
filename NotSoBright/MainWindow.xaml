@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NotSoBright"
         mc:Ignorable="d"
-        Title="NotSoBright"
+        Title="NotSoBright — Dimmer Tool"
+        Icon="NotSoBright.png"
         Width="640"
         Height="480"
         WindowStyle="None"
@@ -15,8 +16,10 @@
         Topmost="True"
         ShowInTaskbar="True"
         KeyDown="OnWindowKeyDown">
-    <Grid x:Name="Root" PreviewMouseLeftButtonDown="OnRootMouseLeftButtonDown">
-        <Rectangle Fill="Black" Opacity="{Binding OverlayOpacity}" />
+    <Grid x:Name="Root"
+          PreviewMouseLeftButtonDown="OnRootMouseLeftButtonDown"
+          MouseWheel="OnRootMouseWheel">
+        <Rectangle Fill="{Binding TintBrush}" Opacity="{Binding OverlayOpacity}" />
         <Popup x:Name="ControlPanelPopup"
                Placement="Relative"
                PlacementTarget="{Binding ElementName=Root}"
@@ -49,7 +52,7 @@
                              Margin="0,0,6,0"
                              KeyDown="OnOpacityTextBoxKeyDown"
                              LostFocus="OnOpacityTextBoxLostFocus"
-                             ToolTip="Enter opacity percentage (1-60)"
+                             ToolTip="Enter opacity percentage (1-95)"
                              AutomationProperties.Name="Opacity Input">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
@@ -68,6 +71,18 @@
                             Margin="0,0,6,0"
                             ToolTip="Increase opacity"
                             AutomationProperties.Name="Increase Opacity" />
+                    <Button Content="_"
+                            Command="{Binding MinimizeCommand}"
+                            Padding="8,4"
+                            Margin="0,0,6,0"
+                            ToolTip="Minimize overlay"
+                            AutomationProperties.Name="Minimize Overlay" />
+                    <Button Content="{Binding MaximizeRestoreLabel}"
+                            Command="{Binding MaximizeRestoreCommand}"
+                            Padding="8,4"
+                            Margin="0,0,6,0"
+                            ToolTip="Maximize / Restore overlay"
+                            AutomationProperties.Name="Maximize Restore Overlay" />
                     <Button Content="X"
                             Command="{Binding CloseCommand}"
                             Padding="8,4"

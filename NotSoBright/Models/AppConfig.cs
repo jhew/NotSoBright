@@ -10,4 +10,6 @@ public sealed class AppConfig
     public double Left { get; set; } = 100;
     public double Top { get; set; } = 100;
     public InteractionMode Mode { get; set; } = InteractionMode.Edit;
+    /// <summary>Overlay tint colour as a hex string, e.g. "#000000".</summary>
+    public string TintColor { get; set; } = "#000000";
 }

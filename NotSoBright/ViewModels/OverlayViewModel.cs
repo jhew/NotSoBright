@@ -19,6 +19,7 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
     private bool _isOpacityTextValid = true;
     private string _maximizeRestoreLabel = "\u25A1"; // □
     private string _tintColor = "#000000";
+    private System.Windows.Media.SolidColorBrush _tintBrush = MakeBrush("#000000");
 
     public OverlayViewModel()
     {
@@ -28,12 +29,14 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
         MinimizeCommand = new RelayCommand(_ => MinimizeRequested?.Invoke(this, EventArgs.Empty));
         MaximizeRestoreCommand = new RelayCommand(_ => MaximizeRestoreRequested?.Invoke(this, EventArgs.Empty));
         CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(this, EventArgs.Empty));
+        HideControlPanelCommand = new RelayCommand(_ => HidePanelRequested?.Invoke(this, EventArgs.Empty));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? MinimizeRequested;
     public event EventHandler? MaximizeRestoreRequested;
     public event EventHandler? CloseRequested;
+    public event EventHandler? HidePanelRequested;
 
     public ICommand IncreaseOpacityCommand { get; }
     public ICommand DecreaseOpacityCommand { get; }
@@ -41,6 +44,7 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
     public ICommand MinimizeCommand { get; }
     public ICommand MaximizeRestoreCommand { get; }
     public ICommand CloseCommand { get; }
+    public ICommand HideControlPanelCommand { get; }
 
     public string MaximizeRestoreLabel
     {
@@ -104,24 +108,29 @@ public sealed class OverlayViewModel : INotifyPropertyChanged
             var sanitized = IsValidHexColor(value) ? value : "#000000";
             if (_tintColor == sanitized) return;
             _tintColor = sanitized;
+            _tintBrush = MakeBrush(sanitized);
             OnPropertyChanged();
             OnPropertyChanged(nameof(TintBrush));
         }
     }
 
-    public System.Windows.Media.Brush TintBrush
+    // Cached brush — rebuilt only when TintColor changes, then frozen so WPF can optimize it.
+    public System.Windows.Media.Brush TintBrush => _tintBrush;
+
+    private static System.Windows.Media.SolidColorBrush MakeBrush(string hexColor)
     {
-        get
+        try
         {
-            try
-            {
-                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_tintColor);
-                return new System.Windows.Media.SolidColorBrush(color);
-            }
-            catch (Exception)
-            {
-                return System.Windows.Media.Brushes.Black;
-            }
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hexColor);
+            var brush = new System.Windows.Media.SolidColorBrush(color);
+            brush.Freeze();
+            return brush;
+        }
+        catch (Exception)
+        {
+            var fallback = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black);
+            fallback.Freeze();
+            return fallback;
         }
     }
 

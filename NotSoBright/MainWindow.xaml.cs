@@ -27,6 +27,7 @@ public partial class MainWindow : Window
 
     private HwndSource? _hwndSource;
     private HotkeyService? _hotkeyService;
+    private double _wheelDeltaAccumulator;
     private readonly OverlayViewModel _viewModel;
     private readonly ConfigService _configService;
     private readonly AppConfig _config;
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
         _viewModel.MinimizeRequested += OnMinimizeRequested;
         _viewModel.MaximizeRestoreRequested += OnMaximizeRestoreRequested;
         _viewModel.CloseRequested += OnCloseRequested;
+        _viewModel.HidePanelRequested += (_, _) => ToggleControlPanel();
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         DataContext = _viewModel;
 
@@ -87,7 +89,7 @@ public partial class MainWindow : Window
 
             // Re-open the popup so its HWND is created after the main window's
             // HWND, giving it the topmost z-order among topmost windows.
-            if (ControlPanelPopup is not null && _viewModel.IsEditMode)
+            if (ControlPanelPopup is not null && ControlPanelPopup.IsOpen)
             {
                 ControlPanelPopup.IsOpen = false;
                 ControlPanelPopup.IsOpen = true;
@@ -161,9 +163,15 @@ public partial class MainWindow : Window
 
     private void OnRootMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        // Each notch of a standard wheel is 120 units; scale to 1% per notch.
-        var delta = e.Delta / 120;
-        _viewModel.OpacityPercent += delta;
+        // Use floating-point division so high-resolution / touchpad wheels
+        // (which produce sub-120 deltas) are accumulated rather than dropped.
+        _wheelDeltaAccumulator += e.Delta / 120.0;
+        var steps = (int)_wheelDeltaAccumulator;
+        if (steps != 0)
+        {
+            _wheelDeltaAccumulator -= steps;
+            _viewModel.OpacityPercent += steps;
+        }
         e.Handled = true;
     }
 
@@ -211,9 +219,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Nudging the offset by 0 forces WPF to recalculate the popup's screen position.
-        ControlPanelPopup.HorizontalOffset += 0.001;
-        ControlPanelPopup.HorizontalOffset -= 0.001;
+        // Store and restore the original offset exactly to avoid floating-point drift
+        // on repeated calls; the momentary change triggers WPF to recalculate position.
+        var originalOffset = ControlPanelPopup.HorizontalOffset;
+        ControlPanelPopup.HorizontalOffset = originalOffset + 0.001;
+        ControlPanelPopup.HorizontalOffset = originalOffset;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -235,16 +245,22 @@ public partial class MainWindow : Window
         _hotkeyService = new HotkeyService(_hwndSource.Handle);
         _hotkeyService.HotkeyPressed += OnHotkeyPressed;
 
-        // Win+Shift+D  — toggle overlay visibility
-        _hotkeyService.Register(HotkeyToggle,          NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkD);
-        // Win+Shift+Up — increase opacity
-        _hotkeyService.Register(HotkeyIncreaseOpacity, NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkUp);
-        // Win+Shift+Down — decrease opacity
-        _hotkeyService.Register(HotkeyDecreaseOpacity, NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkDown);
-        // Win+Shift+M  — toggle edit/passive mode
-        _hotkeyService.Register(HotkeyToggleMode,      NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkM);
-        // Win+Shift+H  — show/hide the control panel
-        _hotkeyService.Register(HotkeyTogglePanel,     NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkH);
+        RegisterHotkey(HotkeyToggle,          NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkD,    "Win+Shift+D (toggle visibility)");
+        RegisterHotkey(HotkeyIncreaseOpacity, NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkUp,   "Win+Shift+Up (increase opacity)");
+        RegisterHotkey(HotkeyDecreaseOpacity, NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkDown, "Win+Shift+Down (decrease opacity)");
+        RegisterHotkey(HotkeyToggleMode,      NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkM,    "Win+Shift+M (toggle mode)");
+        RegisterHotkey(HotkeyTogglePanel,     NativeMethods.ModWin | NativeMethods.ModShift, NativeMethods.VkH,    "Win+Shift+H (toggle panel)");
+    }
+
+    private void RegisterHotkey(int id, int modifiers, int virtualKey, string description)
+    {
+        if (_hotkeyService is null) return;
+        if (!_hotkeyService.Register(id, modifiers, virtualKey))
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[NotSoBright] Failed to register hotkey: {description}. " +
+                "It may already be claimed by another application.");
+        }
     }
 
     private void OnHotkeyPressed(object? sender, int id)
@@ -316,13 +332,6 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(OverlayViewModel.Mode))
         {
             UpdateClickThroughStyle();
-
-            // Auto-hide the control panel in passive mode; restore it in edit mode.
-            if (ControlPanelPopup is not null)
-            {
-                ControlPanelPopup.IsOpen = _viewModel.IsEditMode;
-            }
-
             ScheduleSave();
         }
 

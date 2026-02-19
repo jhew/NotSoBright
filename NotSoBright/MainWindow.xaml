@@ -86,8 +86,18 @@
                     <Button Content="X"
                             Command="{Binding CloseCommand}"
                             Padding="8,4"
+                            Margin="0,0,10,0"
                             ToolTip="Close overlay"
                             AutomationProperties.Name="Close Overlay" />
+                    <Separator Width="1"
+                               VerticalAlignment="Stretch"
+                               Margin="0,2,10,2"
+                               Background="#55FFFFFF" />
+                    <Button Content="Hide panel"
+                            Command="{Binding HideControlPanelCommand}"
+                            Padding="8,4"
+                            ToolTip="Hide this control panel (Win+Shift+H to restore)"
+                            AutomationProperties.Name="Hide Control Panel" />
                 </StackPanel>
             </Border>
         </Popup>

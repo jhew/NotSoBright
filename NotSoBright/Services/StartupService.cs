@@ -18,16 +18,16 @@ public static class StartupService
         return key?.GetValue(AppName) is not null;
     }
 
+    /// <summary>
+    /// Sets or clears the run-at-startup registry entry.
+    /// Throws <see cref="Exception"/> on registry access failure so callers can revert UI state.
+    /// </summary>
     public static void SetStartup(bool enable)
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
-        if (key is null)
-        {
-            return;
-        }
-
         if (enable)
         {
+            // CreateSubKey opens existing or creates missing key — avoids silent no-op.
+            using var key = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
             var exePath = Environment.ProcessPath
                 ?? Process.GetCurrentProcess().MainModule?.FileName
                 ?? string.Empty;
@@ -39,7 +39,8 @@ public static class StartupService
         }
         else
         {
-            key.DeleteValue(AppName, throwOnMissingValue: false);
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            key?.DeleteValue(AppName, throwOnMissingValue: false);
         }
     }
 }

@@ -77,7 +77,24 @@ public sealed class TrayService : IDisposable
             Checked = StartupService.IsStartupEnabled(),
             CheckOnClick = true
         };
-        _startupItem.CheckedChanged += (_, _) => StartupService.SetStartup(_startupItem.Checked);
+        _startupItem.CheckedChanged += (_, _) =>
+        {
+            var desired = _startupItem.Checked;
+            try
+            {
+                StartupService.SetStartup(desired);
+            }
+            catch (Exception ex)
+            {
+                // Revert the UI state since the registry write failed.
+                _startupItem.Checked = !desired;
+                System.Windows.MessageBox.Show(
+                    "Failed to update the startup setting.\n\n" + ex.Message,
+                    "NotSoBright",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        };
 
         var menu = new ContextMenuStrip();
         menu.Items.AddRange(new ToolStripItem[]

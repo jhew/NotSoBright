@@ -67,6 +67,13 @@ public partial class App : System.Windows.Application
 			return;
 		}
 
+		// In passive mode the overlay is click-through and doesn't obstruct the
+		// fullscreen app, so skip the notification and auto-hide entirely.
+		if (!_mainWindow.IsEditMode)
+		{
+			return;
+		}
+
 		_trayService.ShowFullscreenBlockedOnce();
 
 		if (_mainWindow.IsVisible)

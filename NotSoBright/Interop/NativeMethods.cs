@@ -28,6 +28,24 @@ internal static class NativeMethods
 
     internal const int MonitorDefaultToNearest = 2;
 
+    internal const int WmHotkey = 0x0312;
+    internal const int ModShift = 0x0004;
+    internal const int ModWin = 0x0008;
+    internal const int VkD = 0x44;
+    internal const int VkH = 0x48;
+    internal const int VkM = 0x4D;
+    internal const int VkUp = 0x26;
+    internal const int VkDown = 0x28;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll")]
+    internal static extern bool DestroyIcon(IntPtr hIcon);
+
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 

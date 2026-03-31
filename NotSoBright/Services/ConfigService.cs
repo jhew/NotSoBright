@@ -87,16 +87,20 @@ public sealed class ConfigService
                 Directory.CreateDirectory(directory);
             }
 
-            // Create backup if config exists
+            // Atomic write: serialize to a temp file then rename so a crash
+            // mid-write never leaves a truncated / empty config.json.
+            var tempPath = ConfigPath + ".tmp";
+            var json = JsonSerializer.Serialize(config, JsonOptions);
+            File.WriteAllText(tempPath, json);
+
+            // Keep one backup before replacing the live config.
             if (File.Exists(ConfigPath))
             {
                 var backupPath = ConfigPath + ".bak";
-                File.Copy(ConfigPath, backupPath, true);
-                Log.Information("Config backup created");
+                File.Copy(ConfigPath, backupPath, overwrite: true);
             }
 
-            var json = JsonSerializer.Serialize(config, JsonOptions);
-            File.WriteAllText(ConfigPath, json);
+            File.Move(tempPath, ConfigPath, overwrite: true);
             Log.Information("Config saved successfully");
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading;
 using System.Windows;
 using NotSoBright.Models;
 using NotSoBright.Services;
@@ -11,6 +12,7 @@ namespace NotSoBright;
 /// </summary>
 public partial class App : System.Windows.Application
 {
+	private static Mutex? _singleInstanceMutex;
 	private TrayService? _trayService;
 	private MainWindow? _mainWindow;
 	private ConfigService? _configService;
@@ -21,6 +23,16 @@ public partial class App : System.Windows.Application
 	protected override void OnStartup(StartupEventArgs e)
 	{
 		base.OnStartup(e);
+
+		// Enforce single instance — if another instance is already running, exit immediately.
+		_singleInstanceMutex = new Mutex(true, "Global\\NotSoBright_SingleInstance", out var isNew);
+		if (!isNew)
+		{
+			_singleInstanceMutex.Dispose();
+			_singleInstanceMutex = null;
+			Shutdown();
+			return;
+		}
 
 		DispatcherUnhandledException += App_DispatcherUnhandledException;
 		AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -56,6 +68,11 @@ public partial class App : System.Windows.Application
 		Log.Information("Application exiting");
 		_fullscreenDetectionService?.Dispose();
 		_trayService?.Dispose();
+		if (_singleInstanceMutex is not null)
+		{
+			_singleInstanceMutex.ReleaseMutex();
+			_singleInstanceMutex.Dispose();
+		}
 		Log.CloseAndFlush();
 		base.OnExit(e);
 	}

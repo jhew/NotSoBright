@@ -16,6 +16,86 @@
         Topmost="True"
         ShowInTaskbar="True"
         KeyDown="OnWindowKeyDown">
+
+    <Window.Resources>
+        <!-- Shared dark-theme button style for the overlay control panels -->
+        <Style x:Key="OverlayButton" TargetType="Button">
+            <Setter Property="Background" Value="#FF2D2D30" />
+            <Setter Property="Foreground" Value="#FFDCDCDC" />
+            <Setter Property="BorderBrush" Value="#FF3F3F46" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3E3E42" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FF007ACC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF007ACC" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Close button variant with red hover -->
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource OverlayButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFE81123" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FFE81123" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFB71C1C" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark-themed textbox style -->
+        <Style x:Key="OverlayTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#FF1E1E1E" />
+            <Setter Property="Foreground" Value="#FFDCDCDC" />
+            <Setter Property="BorderBrush" Value="#FF3F3F46" />
+            <Setter Property="CaretBrush" Value="#FFDCDCDC" />
+            <Setter Property="Padding" Value="4,2" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOpacityTextValid}" Value="False">
+                    <Setter Property="BorderBrush" Value="#FFE81123" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Grid x:Name="Root"
           PreviewMouseLeftButtonDown="OnRootMouseLeftButtonDown"
           MouseWheel="OnRootMouseWheel">
@@ -30,11 +110,14 @@
                IsOpen="False"
                StaysOpen="True"
                AllowsTransparency="True">
-            <Button Command="{Binding HideControlPanelCommand}"
-                    Padding="8,4"
-                    ToolTip="Show control panel (Win+Shift+H)"
-                    AutomationProperties.Name="Show Control Panel"
-                    Content="Show panel" />
+            <Border Background="#CC1E1E1E" CornerRadius="4" Padding="2">
+                <Button Style="{StaticResource OverlayButton}"
+                        Command="{Binding HideControlPanelCommand}"
+                        Padding="10,5"
+                        ToolTip="Show control panel (Win+Shift+H)"
+                        AutomationProperties.Name="Show Control Panel"
+                        Content="&#x2630; Show panel" />
+            </Border>
         </Popup>
 
         <Popup x:Name="ControlPanelPopup"
@@ -46,73 +129,63 @@
                StaysOpen="True"
                AllowsTransparency="True">
             <Border x:Name="ControlPanel"
-                    Padding="8"
+                    Padding="6"
                     Background="#CC1E1E1E"
                     CornerRadius="6">
                 <StackPanel Orientation="Horizontal">
                     <Button Content="{Binding ModeLabel}"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding ToggleModeCommand}"
-                            Padding="8,4"
-                            Margin="0,0,6,0"
-                            ToolTip="Toggle between edit and passive mode"
+                            Margin="0,0,4,0"
+                            ToolTip="Toggle between edit and passive mode (Win+Shift+M)"
                             AutomationProperties.Name="Mode Toggle" />
-                    <Button Content="-"
+                    <Button Content="&#x25BC;"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding DecreaseOpacityCommand}"
-                            Padding="8,4"
-                            Margin="0,0,6,0"
-                            ToolTip="Decrease opacity"
+                            Margin="0,0,4,0"
+                            ToolTip="Decrease opacity (Win+Shift+Down)"
                             AutomationProperties.Name="Decrease Opacity" />
                     <TextBox x:Name="OpacityTextBox"
+                             Style="{StaticResource OverlayTextBox}"
                              Text="{Binding OpacityText, UpdateSourceTrigger=PropertyChanged}"
                              VerticalAlignment="Center"
-                             Width="40"
-                             Margin="0,0,6,0"
+                             Width="48"
+                             Margin="0,0,4,0"
                              KeyDown="OnOpacityTextBoxKeyDown"
                              LostFocus="OnOpacityTextBoxLostFocus"
                              ToolTip="Enter opacity percentage (1-95)"
-                             AutomationProperties.Name="Opacity Input">
-                        <TextBox.Style>
-                            <Style TargetType="TextBox">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsOpacityTextValid}" Value="False">
-                                        <Setter Property="BorderBrush" Value="Red" />
-                                        <Setter Property="BorderThickness" Value="2" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBox.Style>
-                    </TextBox>
-                    <Button Content="+"
+                             AutomationProperties.Name="Opacity Input" />
+                    <Button Content="&#x25B2;"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding IncreaseOpacityCommand}"
-                            Padding="8,4"
-                            Margin="0,0,6,0"
-                            ToolTip="Increase opacity"
+                            Margin="0,0,4,0"
+                            ToolTip="Increase opacity (Win+Shift+Up)"
                             AutomationProperties.Name="Increase Opacity" />
-                    <Button Content="_"
+                    <Button Content="&#x2015;"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding MinimizeCommand}"
-                            Padding="8,4"
-                            Margin="0,0,6,0"
+                            Margin="0,0,4,0"
                             ToolTip="Minimize overlay"
                             AutomationProperties.Name="Minimize Overlay" />
                     <Button Content="{Binding MaximizeRestoreLabel}"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding MaximizeRestoreCommand}"
-                            Padding="8,4"
-                            Margin="0,0,6,0"
+                            Margin="0,0,4,0"
                             ToolTip="Maximize / Restore overlay"
                             AutomationProperties.Name="Maximize Restore Overlay" />
-                    <Button Content="X"
+                    <Button Content="&#x2715;"
+                            Style="{StaticResource CloseButton}"
                             Command="{Binding CloseCommand}"
-                            Padding="8,4"
-                            Margin="0,0,10,0"
+                            Margin="0,0,8,0"
                             ToolTip="Close overlay"
                             AutomationProperties.Name="Close Overlay" />
                     <Separator Width="1"
                                VerticalAlignment="Stretch"
-                               Margin="0,2,10,2"
+                               Margin="0,2,8,2"
                                Background="#55FFFFFF" />
                     <Button Content="Hide panel"
+                            Style="{StaticResource OverlayButton}"
                             Command="{Binding HideControlPanelCommand}"
-                            Padding="8,4"
                             ToolTip="Hide this control panel (Win+Shift+H to restore)"
                             AutomationProperties.Name="Hide Control Panel" />
                 </StackPanel>

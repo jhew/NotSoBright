@@ -1,5 +1,3 @@
-using NotSoBright.Models;
-
 namespace NotSoBright.Models;
 
 public sealed class AppConfig

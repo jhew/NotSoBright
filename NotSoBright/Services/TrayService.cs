@@ -166,7 +166,7 @@ public sealed class TrayService : IDisposable
     }
 
     public void ShowFullscreenBlockedOnce()
-    { 
+    {
         _notifyIcon.ShowBalloonTip(4000, "NotSoBright — Dimmer Tool", "Overlay cannot render over exclusive fullscreen. Switch to borderless or windowed mode.", ToolTipIcon.Info);
     }
 

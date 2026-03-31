@@ -348,20 +348,15 @@ public partial class MainWindow : Window
 
     private void OnCloseRequested(object? sender, System.EventArgs e)
     {
-        // Temporarily make window interactive so it can own the dialog
-        var wasPassive = !_viewModel.IsEditMode;
-        if (wasPassive)
-        {
-            // Temporarily set interactive to make dialog appear on top
-            Topmost = true;
-            Activate();
-        }
+        // Ensure the dialog appears on top even in passive mode.
+        Topmost = true;
+        Activate();
 
         var result = System.Windows.MessageBox.Show(
-            this, 
-            "Close the overlay?", 
-            "Confirm", 
-            System.Windows.MessageBoxButton.YesNo, 
+            this,
+            "Close the overlay?",
+            "Confirm",
+            System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Question);
 
         if (result == System.Windows.MessageBoxResult.Yes)

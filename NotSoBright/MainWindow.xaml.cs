@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private HwndSource? _hwndSource;
     private HotkeyService? _hotkeyService;
     private double _wheelDeltaAccumulator;
+    private System.Windows.Forms.Screen? _currentScreen;
     private readonly OverlayViewModel _viewModel;
     private readonly ConfigService _configService;
     private readonly AppConfig _config;
@@ -57,14 +58,14 @@ public partial class MainWindow : Window
             SaveConfig();
         };
 
-        // Ensure popup window style is set when it opens
+        // Apply HWND styles whenever each popup opens.
         if (ControlPanelPopup is not null)
-        {
             ControlPanelPopup.Opened += (_, _) => UpdatePopupWindowStyle();
-        }
+        if (ShowPanelPopup is not null)
+            ShowPanelPopup.Opened += (_, _) => UpdatePopupWindowStyle();
 
         ApplyConfig();
-        LocationChanged += (_, _) => { ScheduleSave(); RefreshPopupPosition(); };
+        LocationChanged += (_, _) => { ScheduleSave(); OnWindowMoved(); };
         SizeChanged += (_, e) => { ScheduleSave(); RefreshPopupPosition(); };
         StateChanged += (_, _) => { ScheduleSave(); UpdateMaximizeRestoreLabel(); };
         Closing += (_, _) => { SaveConfig(); _hotkeyService?.Dispose(); };
@@ -87,12 +88,18 @@ public partial class MainWindow : Window
         {
             Show();
 
-            // Re-open the popup so its HWND is created after the main window's
-            // HWND, giving it the topmost z-order among topmost windows.
+            // Re-open the popups so their HWNDs are created after the main window's
+            // HWND, giving them the topmost z-order among topmost windows.
             if (ControlPanelPopup is not null && ControlPanelPopup.IsOpen)
             {
                 ControlPanelPopup.IsOpen = false;
                 ControlPanelPopup.IsOpen = true;
+            }
+
+            if (ShowPanelPopup is not null && ShowPanelPopup.IsOpen)
+            {
+                ShowPanelPopup.IsOpen = false;
+                ShowPanelPopup.IsOpen = true;
             }
         }
 
@@ -214,16 +221,47 @@ public partial class MainWindow : Window
 
     private void RefreshPopupPosition()
     {
-        if (ControlPanelPopup is null || !ControlPanelPopup.IsOpen)
+        NudgePopup(ControlPanelPopup);
+        NudgePopup(ShowPanelPopup);
+    }
+
+    private void OnWindowMoved()
+    {
+        RefreshPopupPosition();
+
+        // When the window crosses to a different monitor, force-reopen popups so
+        // WPF creates fresh HWNDs on the new monitor with correct extended styles.
+        // Doing this on every LocationChanged would flicker constantly while dragging.
+        var center = new System.Drawing.Point(
+            (int)(Left + ActualWidth  / 2),
+            (int)(Top  + ActualHeight / 2));
+        var screen = System.Windows.Forms.Screen.FromPoint(center);
+        if (_currentScreen?.DeviceName != screen.DeviceName)
         {
-            return;
+            _currentScreen = screen;
+            ReopenPopup(ControlPanelPopup);
+            ReopenPopup(ShowPanelPopup);
         }
+    }
+
+    private static void ReopenPopup(System.Windows.Controls.Primitives.Popup? popup)
+    {
+        // Close then immediately reopen so WPF creates a brand-new HWND on the
+        // current monitor and Opened fires to re-apply the non-transparent styles.
+        if (popup is null || !popup.IsOpen) return;
+        popup.IsOpen = false;
+        popup.IsOpen = true;
+    }
+
+    private static void NudgePopup(System.Windows.Controls.Primitives.Popup? popup)
+    {
+        if (popup is null || !popup.IsOpen) return;
 
         // Store and restore the original offset exactly to avoid floating-point drift
         // on repeated calls; the momentary change triggers WPF to recalculate position.
-        var originalOffset = ControlPanelPopup.HorizontalOffset;
-        ControlPanelPopup.HorizontalOffset = originalOffset + 0.001;
-        ControlPanelPopup.HorizontalOffset = originalOffset;
+        var originalOffset = popup.HorizontalOffset;
+        popup.HorizontalOffset = originalOffset + 0.001;
+        popup.HorizontalOffset = originalOffset;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -277,9 +315,16 @@ public partial class MainWindow : Window
 
     private void ToggleControlPanel()
     {
-        if (ControlPanelPopup is not null)
+        if (ControlPanelPopup is null) return;
+
+        var opening = !ControlPanelPopup.IsOpen;
+        ControlPanelPopup.IsOpen = opening;
+
+        // ShowPanelPopup is always the inverse of ControlPanelPopup so it
+        // remains clickable in passive mode via its own non-transparent HWND.
+        if (ShowPanelPopup is not null)
         {
-            ControlPanelPopup.IsOpen = !ControlPanelPopup.IsOpen;
+            ShowPanelPopup.IsOpen = !opening;
         }
     }
 
@@ -437,21 +482,26 @@ public partial class MainWindow : Window
 
     private void UpdatePopupWindowStyle()
     {
+        ApplyNonTransparentStyle(ControlPanelPopup);
+        ApplyNonTransparentStyle(ShowPanelPopup);
+    }
+
+    private void ApplyNonTransparentStyle(System.Windows.Controls.Primitives.Popup? popup)
+    {
         // Ensure the popup is not click-through and is topmost
-        if (ControlPanelPopup is not null && ControlPanelPopup.IsOpen)
+        if (popup is null || !popup.IsOpen) return;
+
+        var popupSource = PresentationSource.FromVisual(popup.Child) as HwndSource;
+        if (popupSource is not null)
         {
-            var popupSource = PresentationSource.FromVisual(ControlPanelPopup.Child) as HwndSource;
-            if (popupSource is not null)
-            {
-                var popupExStyle = NativeMethods.GetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle);
-                var popupExStyleValue = popupExStyle.ToInt64();
-                
-                // Remove transparent flag and ensure topmost
-                popupExStyleValue &= ~NativeMethods.WsExTransparent;
-                popupExStyleValue |= NativeMethods.WsExTopmost;
-                
-                NativeMethods.SetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle, new IntPtr(popupExStyleValue));
-            }
+            var popupExStyle = NativeMethods.GetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle);
+            var popupExStyleValue = popupExStyle.ToInt64();
+
+            // Remove transparent flag and ensure topmost
+            popupExStyleValue &= ~NativeMethods.WsExTransparent;
+            popupExStyleValue |= NativeMethods.WsExTopmost;
+
+            NativeMethods.SetWindowLongPtr(popupSource.Handle, NativeMethods.GwlExStyle, new IntPtr(popupExStyleValue));
         }
     }
 

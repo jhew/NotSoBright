@@ -20,6 +20,23 @@
           PreviewMouseLeftButtonDown="OnRootMouseLeftButtonDown"
           MouseWheel="OnRootMouseWheel">
         <Rectangle Fill="{Binding TintBrush}" Opacity="{Binding OverlayOpacity}" />
+
+        <!-- Shown only when the control panel popup is hidden; clicking restores it. -->
+        <Popup x:Name="ShowPanelPopup"
+               Placement="Relative"
+               PlacementTarget="{Binding ElementName=Root}"
+               HorizontalOffset="8"
+               VerticalOffset="8"
+               IsOpen="False"
+               StaysOpen="True"
+               AllowsTransparency="True">
+            <Button Command="{Binding HideControlPanelCommand}"
+                    Padding="8,4"
+                    ToolTip="Show control panel (Win+Shift+H)"
+                    AutomationProperties.Name="Show Control Panel"
+                    Content="Show panel" />
+        </Popup>
+
         <Popup x:Name="ControlPanelPopup"
                Placement="Relative"
                PlacementTarget="{Binding ElementName=Root}"

@@ -7,6 +7,24 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Satisfies the WinForms WFO0003 warning; WPF still reads PerMonitorV2 from the manifest. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Suppress the WinForms-only WFO0003 nag about manifest DPI settings — WPF needs them there. -->
+    <NoWarn>WFO0003</NoWarn>
+
+    <!-- Assembly identity metadata — improves reputation with Windows SmartScreen
+         and Smart App Control, which use this information when evaluating unknown apps. -->
+    <AssemblyTitle>NotSoBright</AssemblyTitle>
+    <AssemblyDescription>Screen dimmer overlay for Windows</AssemblyDescription>
+    <AssemblyProduct>NotSoBright</AssemblyProduct>
+    <AssemblyCompany>NotSoBright</AssemblyCompany>
+    <AssemblyCopyright>Copyright © 2024-2026</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+    <Product>NotSoBright</Product>
+    <Company>NotSoBright</Company>
   </PropertyGroup>
 
   <ItemGroup>
